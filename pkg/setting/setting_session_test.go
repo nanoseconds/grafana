@@ -10,17 +10,13 @@ import (
 
 type testLogger struct {
 	log.Logger
-	warnCalled  bool
-	warnMessage string
-}
-
-func (stub *testLogger) Warn(testMessage string, ctx ...interface{}) {
-	stub.warnCalled = true
-	stub.warnMessage = testMessage
+	infoCalled  bool
+	infoMessage []string
 }
 
 func (stub *testLogger) Info(testMessage string, ctx ...interface{}) {
-
+	stub.infoCalled = true
+	stub.infoMessage = append(stub.infoMessage, testMessage)
 }
 
 func TestSessionSettings(t *testing.T) {
@@ -40,8 +36,8 @@ func TestSessionSettings(t *testing.T) {
 			})
 			So(err, ShouldBeNil)
 
-			So(stub.warnCalled, ShouldEqual, true)
-			So(len(stub.warnMessage), ShouldBeGreaterThan, 0)
+			So(stub.infoCalled, ShouldEqual, true)
+			So(len(stub.infoMessage), ShouldBeGreaterThan, 1)
 		})
 	})
 }

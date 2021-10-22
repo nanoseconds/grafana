@@ -96,7 +96,7 @@ func TestSlackNotifier(t *testing.T) {
 		assert.Equal(t, []string{"user1", "user2"}, slackNotifier.mentionUsers)
 		assert.Equal(t, []string{"group1", "group2"}, slackNotifier.mentionGroups)
 		assert.Equal(t, "here", slackNotifier.mentionChannel)
-		assert.Equal(t, "xoxb-XXXXXXXX-XXXXXXXX-Info", slackNotifier.token)
+		assert.Equal(t, "xoxb-XXXXXXXX-XXXXXXXX-XXXXXXXXXX", slackNotifier.token)
 	})
 
 	t.Run("from settings with Recipient, Username, IconEmoji, IconUrl, MentionUsers, MentionGroups, MentionChannel, and Secured Token", func(t *testing.T) {
@@ -110,7 +110,7 @@ func TestSlackNotifier(t *testing.T) {
                       "mentionUsers": "user1, user2",
                       "mentionGroups": "group1, group2",
                       "mentionChannel": "here",
-                      "token": "uenc-XXXXXXXX-XXXXXXXX-Info"
+                      "token": "uenc-XXXXXXXX-XXXXXXXXX-XXXXXXXXXX"
                     }`
 
 		settingsJSON, err := simplejson.NewJson([]byte(json))
@@ -120,7 +120,7 @@ func TestSlackNotifier(t *testing.T) {
 		securedSettingsJSON, err := encryptionService.EncryptJsonData(
 			context.Background(),
 			map[string]string{
-				"token": "xenc-XXXXXXXX-XXXXXXXX-Info",
+				"token": "xenc-XXXXXXXX-XXXXXXXXX-XXXXXXXXXX",
 			}, setting.SecretKey)
 		require.NoError(t, err)
 
@@ -144,7 +144,7 @@ func TestSlackNotifier(t *testing.T) {
 		assert.Equal(t, []string{"user1", "user2"}, slackNotifier.mentionUsers)
 		assert.Equal(t, []string{"group1", "group2"}, slackNotifier.mentionGroups)
 		assert.Equal(t, "here", slackNotifier.mentionChannel)
-		assert.Equal(t, "xenc-XXXXXXXX-XXXXXXXX-Info", slackNotifier.token)
+		assert.Equal(t, "xenc-XXXXXXXX-XXXXXXXXX-XXXXXXXXXX", slackNotifier.token)
 	})
 
 	t.Run("with channel recipient with spaces should return an error", func(t *testing.T) {

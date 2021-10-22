@@ -62,14 +62,23 @@ The `additionalData` field can contain the following information:
 
 ### Recorded actions
 
-The audit logs include records about the following categories of actions:
+The audit logs include records about the following categories of actions. Each action is
+distinguished by the `action` and sometimes `resources[0].type` fields in the JSON record, as shown below:
 
-**Sessions**
+#### Sessions
 
-- Log in.
-- Log out (manual log out, token expired/revoked, [SAML Single Logout]({{< relref "saml.md#single-logout" >}})).
-- Revoke a user authentication token.
-- Create or delete an API key.
+| Action                           | Contents                                                             |
+| -------------------------------- | -------------------------------------------------------------------- |
+| Log in                           | `{"action": "login-AUTH-MODULE", ...}` \*                            |
+| Log out \*\*                     | `{"action": "logout", ...}`                                          |
+| Force logout for user            | `{"action": "logout-user", ...}`                                     |
+| Remove user authentication token | `{"action": "revoke-auth-token", ...}`                               |
+| Create API key                   | `{"action": "create", "resources": [{"type": "api-key", ...}], ...}` |
+| Delete API key                   | `{"action": "delete", "resources": [{"type": "api-key", ...}], ...}` |
+
+\* Where `AUTH-MODULE` is the name of the authentication module: `grafana`, `saml`,
+`ldap`, etc. \
+\*\* Includes manual log out, token expired/revoked, and [SAML Single Logout]({{< relref "saml.md#single-logout" >}}).
 
 **User management**
 

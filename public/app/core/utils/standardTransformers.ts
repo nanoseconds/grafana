@@ -18,9 +18,11 @@ import { rowsToFieldsTransformRegistryItem } from '../components/TransformersUI/
 import { configFromQueryTransformRegistryItem } from '../components/TransformersUI/configFromQuery/ConfigFromQueryTransformerEditor';
 import { prepareTimeseriesTransformerRegistryItem } from '../components/TransformersUI/prepareTimeSeries/PrepareTimeSeriesEditor';
 import { convertFieldTypeTransformRegistryItem } from '../components/TransformersUI/ConvertFieldTypeTransformerEditor';
+import { calculateToRowTransformRegistryItem } from '../components/TransformersUI/CalculateToRowTransformerEditor';
 
 export const getStandardTransformers = (): Array<TransformerRegistryItem<any>> => {
   return [
+    calculateToRowTransformRegistryItem,
     reduceTransformRegistryItem,
     filterFieldsByNameTransformRegistryItem,
     renameByRegexTransformRegistryItem,

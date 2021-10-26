@@ -6,6 +6,18 @@ import { DataLink, LinkModel } from './dataLink';
 import { Vector } from './vector';
 import { FieldColor } from './fieldColor';
 import { ScopedVars } from './ScopedVars';
+import { ReducerID } from '../transformations';
+
+
+export interface StatValues {
+  id: ReducerID;
+  index: {
+    row: number;
+    col: number;
+  };
+  [key: string]: any;
+}
+
 
 /** @public */
 export enum FieldType {
@@ -81,11 +93,17 @@ export interface FieldConfig<TOptions extends object = any> {
   // The behavior when clicking on a result
   links?: DataLink[];
 
+  // waiting, the header links
+  headerLinks?: DataLink[];
+
   // Alternative to empty string
   noValue?: string;
 
   // Panel Specific Values
   custom?: TOptions;
+
+  // waiting, the stat values
+  statValues?: StatValues[];
 }
 
 /** @public */
@@ -135,6 +153,11 @@ export interface Field<T = any, V = Vector<T>> {
    * Get value data links with variables interpolated
    */
   getLinks?: (config: ValueLinkConfig) => Array<LinkModel<Field>>;
+
+  /**
+   * waiting get header links
+   */
+  getHeaderLinks?: (config: ValueLinkConfig) => Array<LinkModel<Field>>;
 }
 
 /** @alpha */

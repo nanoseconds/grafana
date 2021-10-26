@@ -1,5 +1,7 @@
 import React, { FC, ReactElement } from 'react';
-import { DisplayValue, Field, formattedValueToString } from '@grafana/data';
+import curry from 'lodash/curry';
+//import { DisplayValue, Field, formattedValueToString } from '@grafana/data';
+import { DisplayValue, Field, formattedValueToString, appendCalculatedMethodToValue, LinkModel } from '@grafana/data';
 
 import { TableCellDisplayMode, TableCellProps } from './types';
 import tinycolor from 'tinycolor2';
@@ -10,7 +12,11 @@ import { getTextColorForBackground, getCellLinks } from '../../utils';
 export const DefaultCell: FC<TableCellProps> = (props) => {
   const { field, cell, tableStyles, row, cellProps } = props;
 
-  const displayValue = field.display!(cell.value);
+  //const displayValue = field.display!(cell.value);
+  const displayValue = [field.display!, curry(appendCalculatedMethodToValue)(field, row)].reduce(
+    (acc, fn) => fn(acc),
+    cell.value
+  );
 
   let value: string | ReactElement;
   if (React.isValidElement(cell.value)) {

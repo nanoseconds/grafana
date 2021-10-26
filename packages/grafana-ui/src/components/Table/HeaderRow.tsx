@@ -1,4 +1,5 @@
 import React from 'react';
+import cn from 'classnames';
 import { HeaderGroup, Column } from 'react-table';
 import { DataFrame, Field } from '@grafana/data';
 import { selectors } from '@grafana/e2e-selectors';
@@ -50,6 +51,21 @@ function renderHeaderCell(column: any, tableStyles: TableStyles, field?: Field, 
 
   headerProps.style.position = 'absolute';
   headerProps.style.justifyContent = (column as any).justifyContent;
+
+  let link = null;
+  if (field && field?.getHeaderLinks) {
+    link = field.getHeaderLinks({})[0];
+  }
+
+  if (!!link) {
+    return (
+      <div className={cn(tableStyles.headerCell, tableStyles.cellLink)} {...headerProps}>
+        <a href={link.href} target={link.target} title={link.title}>
+          {column.render('Header')}
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div className={tableStyles.headerCell} {...headerProps} role="columnheader">

@@ -3,6 +3,7 @@ import {
   DataSourceInstanceSettings,
   DataSourceJsonData,
   DataSourcePluginMeta,
+  DataSourceRef,
   ScopedVars,
 } from '@grafana/data';
 import {
@@ -238,6 +239,7 @@ export class MockDataSourceSrv implements DataSourceSrv {
     getVariables: () => [],
     replace: (name: any) => name,
   };
+
   defaultName = '';
 
   constructor(datasources: Record<string, DataSourceInstanceSettings>) {
@@ -249,6 +251,7 @@ export class MockDataSourceSrv implements DataSourceSrv {
       },
       {}
     );
+
     for (const dsSettings of Object.values(this.settingsMapByName)) {
       this.settingsMapByUid[dsSettings.uid] = dsSettings;
       this.settingsMapById[dsSettings.id] = dsSettings;
@@ -258,7 +261,7 @@ export class MockDataSourceSrv implements DataSourceSrv {
     }
   }
 
-  get(name?: string | null, scopedVars?: ScopedVars): Promise<DataSourceApi> {
+  get(name?: string | null | DataSourceRef, scopedVars?: ScopedVars): Promise<DataSourceApi> {
     return DatasourceSrv.prototype.get.call(this, name, scopedVars);
     //return Promise.reject(new Error('not implemented'));
   }

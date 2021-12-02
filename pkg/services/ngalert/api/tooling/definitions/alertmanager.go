@@ -1,6 +1,7 @@
 package definitions
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -9,16 +10,15 @@ import (
 	"time"
 
 	"github.com/go-openapi/strfmt"
+	"github.com/grafana/grafana/pkg/components/simplejson"
+	"github.com/grafana/grafana/pkg/services/secrets"
+	"github.com/grafana/grafana/pkg/util"
 	"github.com/pkg/errors"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/alertmanager/config"
 	"github.com/prometheus/alertmanager/pkg/labels"
 	"github.com/prometheus/common/model"
 	"gopkg.in/yaml.v3"
-
-	"github.com/grafana/grafana/pkg/components/simplejson"
-	"github.com/grafana/grafana/pkg/setting"
-	"github.com/grafana/grafana/pkg/util"
 )
 
 // swagger:route POST /api/alertmanager/{Recipient}/config/api/v1/alerts alertmanager RoutePostAlertingConfig
@@ -138,17 +138,25 @@ type MultiStatus struct{}
 // swagger:parameters RoutePostTestReceivers
 type TestReceiversConfigParams struct {
 	// in:body
+	Alert *TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
+	// in:body
 	Receivers []*PostableApiReceiver `yaml:"receivers,omitempty" json:"receivers,omitempty"`
 }
 
-func (c *TestReceiversConfigParams) ProcessConfig() error {
-	return processReceiverConfigs(c.Receivers)
+func (c *TestReceiversConfigParams) ProcessConfig(encrypt EncryptFn) error {
+	return processReceiverConfigs(c.Receivers, encrypt)
+}
+
+type TestReceiversConfigAlertParams struct {
+	Annotations model.LabelSet `yaml:"annotations,omitempty" json:"annotations,omitempty"`
+	Labels      model.LabelSet `yaml:"labels,omitempty" json:"labels,omitempty"`
 }
 
 // swagger:model
 type TestReceiversResult struct {
-	Receivers []TestReceiverResult `json:"receivers"`
-	NotifedAt time.Time            `json:"notified_at"`
+	Alert      TestReceiversConfigAlertParams `json:"alert"`
+	Receivers  []TestReceiverResult           `json:"receivers"`
+	NotifiedAt time.Time                      `json:"notified_at"`
 }
 
 // swagger:model
@@ -412,8 +420,8 @@ func (c *PostableUserConfig) GetGrafanaReceiverMap() map[string]*PostableGrafana
 }
 
 // ProcessConfig parses grafana receivers, encrypts secrets and assigns UUIDs (if they are missing)
-func (c *PostableUserConfig) ProcessConfig() error {
-	return processReceiverConfigs(c.AlertmanagerConfig.Receivers)
+func (c *PostableUserConfig) ProcessConfig(encrypt EncryptFn) error {
+	return processReceiverConfigs(c.AlertmanagerConfig.Receivers, encrypt)
 }
 
 // MarshalYAML implements yaml.Marshaller.
@@ -579,10 +587,124 @@ func (c *GettableApiAlertingConfig) validate() error {
 
 // Config is the top-level configuration for Alertmanager's config files.
 type Config struct {
-	Global       *config.GlobalConfig  `yaml:"global,omitempty" json:"global,omitempty"`
-	Route        *Route                `yaml:"route,omitempty" json:"route,omitempty"`
-	InhibitRules []*config.InhibitRule `yaml:"inhibit_rules,omitempty" json:"inhibit_rules,omitempty"`
-	Templates    []string              `yaml:"templates" json:"templates"`
+	Global            *config.GlobalConfig      `yaml:"global,omitempty" json:"global,omitempty"`
+	Route             *Route                    `yaml:"route,omitempty" json:"route,omitempty"`
+	InhibitRules      []*config.InhibitRule     `yaml:"inhibit_rules,omitempty" json:"inhibit_rules,omitempty"`
+	MuteTimeIntervals []config.MuteTimeInterval `yaml:"mute_time_intervals,omitempty" json:"mute_time_intervals,omitempty"`
+	Templates         []string                  `yaml:"templates" json:"templates"`
+}
+
+// A Route is a node that contains definitions of how to handle alerts. This is modified
+// from the upstream alertmanager in that it adds the ObjectMatchers property.
+type Route struct {
+	Receiver string `yaml:"receiver,omitempty" json:"receiver,omitempty"`
+
+	GroupByStr []string          `yaml:"group_by,omitempty" json:"group_by,omitempty"`
+	GroupBy    []model.LabelName `yaml:"-" json:"-"`
+	GroupByAll bool              `yaml:"-" json:"-"`
+	// Deprecated. Remove before v1.0 release.
+	Match map[string]string `yaml:"match,omitempty" json:"match,omitempty"`
+	// Deprecated. Remove before v1.0 release.
+	MatchRE           config.MatchRegexps `yaml:"match_re,omitempty" json:"match_re,omitempty"`
+	Matchers          config.Matchers     `yaml:"matchers,omitempty" json:"matchers,omitempty"`
+	ObjectMatchers    ObjectMatchers      `yaml:"object_matchers,omitempty" json:"object_matchers,omitempty"`
+	MuteTimeIntervals []string            `yaml:"mute_time_intervals,omitempty" json:"mute_time_intervals,omitempty"`
+	Continue          bool                `yaml:"continue" json:"continue,omitempty"`
+	Routes            []*Route            `yaml:"routes,omitempty" json:"routes,omitempty"`
+
+	GroupWait      *model.Duration `yaml:"group_wait,omitempty" json:"group_wait,omitempty"`
+	GroupInterval  *model.Duration `yaml:"group_interval,omitempty" json:"group_interval,omitempty"`
+	RepeatInterval *model.Duration `yaml:"repeat_interval,omitempty" json:"repeat_interval,omitempty"`
+}
+
+// UnmarshalYAML implements the yaml.Unmarshaler interface for Route. This is a copy of alertmanager's upstream except it removes validation on the label key.
+func (r *Route) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	type plain Route
+	if err := unmarshal((*plain)(r)); err != nil {
+		return err
+	}
+
+	for _, l := range r.GroupByStr {
+		if l == "..." {
+			r.GroupByAll = true
+		} else {
+			r.GroupBy = append(r.GroupBy, model.LabelName(l))
+		}
+	}
+
+	if len(r.GroupBy) > 0 && r.GroupByAll {
+		return fmt.Errorf("cannot have wildcard group_by (`...`) and other other labels at the same time")
+	}
+
+	groupBy := map[model.LabelName]struct{}{}
+
+	for _, ln := range r.GroupBy {
+		if _, ok := groupBy[ln]; ok {
+			return fmt.Errorf("duplicated label %q in group_by", ln)
+		}
+		groupBy[ln] = struct{}{}
+	}
+
+	if r.GroupInterval != nil && time.Duration(*r.GroupInterval) == time.Duration(0) {
+		return fmt.Errorf("group_interval cannot be zero")
+	}
+	if r.RepeatInterval != nil && time.Duration(*r.RepeatInterval) == time.Duration(0) {
+		return fmt.Errorf("repeat_interval cannot be zero")
+	}
+
+	return nil
+}
+
+// Return an alertmanager route from a Grafana route. The ObjectMatchers are converted to Matchers.
+func (r *Route) AsAMRoute() *config.Route {
+	amRoute := &config.Route{
+		Receiver:          r.Receiver,
+		GroupByStr:        r.GroupByStr,
+		GroupBy:           r.GroupBy,
+		GroupByAll:        r.GroupByAll,
+		Match:             r.Match,
+		MatchRE:           r.MatchRE,
+		Matchers:          append(r.Matchers, r.ObjectMatchers...),
+		MuteTimeIntervals: r.MuteTimeIntervals,
+		Continue:          r.Continue,
+
+		GroupWait:      r.GroupWait,
+		GroupInterval:  r.GroupInterval,
+		RepeatInterval: r.RepeatInterval,
+
+		Routes: make([]*config.Route, 0, len(r.Routes)),
+	}
+	for _, rt := range r.Routes {
+		amRoute.Routes = append(amRoute.Routes, rt.AsAMRoute())
+	}
+
+	return amRoute
+}
+
+// Return a Grafana route from an alertmanager route. The Matchers are converted to ObjectMatchers.
+func AsGrafanaRoute(r *config.Route) *Route {
+	gRoute := &Route{
+		Receiver:          r.Receiver,
+		GroupByStr:        r.GroupByStr,
+		GroupBy:           r.GroupBy,
+		GroupByAll:        r.GroupByAll,
+		Match:             r.Match,
+		MatchRE:           r.MatchRE,
+		ObjectMatchers:    ObjectMatchers(r.Matchers),
+		MuteTimeIntervals: r.MuteTimeIntervals,
+		Continue:          r.Continue,
+
+		GroupWait:      r.GroupWait,
+		GroupInterval:  r.GroupInterval,
+		RepeatInterval: r.RepeatInterval,
+
+		Routes: make([]*Route, 0, len(r.Routes)),
+	}
+	for _, rt := range r.Routes {
+		gRoute.Routes = append(gRoute.Routes, AsGrafanaRoute(rt))
+	}
+
+	return gRoute
 }
 
 // A Route is a node that contains definitions of how to handle alerts. This is modified
@@ -737,6 +859,9 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 	if len(c.Route.Match) > 0 || len(c.Route.MatchRE) > 0 {
 		return fmt.Errorf("root route must not have any matchers")
 	}
+	if len(c.Route.MuteTimeIntervals) > 0 {
+		return fmt.Errorf("root route must not have any mute time intervals")
+	}
 
 	for _, r := range c.InhibitRules {
 		if err := r.UnmarshalYAML(noopUnmarshal); err != nil {
@@ -744,6 +869,33 @@ func (c *Config) UnmarshalJSON(b []byte) error {
 		}
 	}
 
+	tiNames := make(map[string]struct{})
+	for _, mt := range c.MuteTimeIntervals {
+		if mt.Name == "" {
+			return fmt.Errorf("missing name in mute time interval")
+		}
+		if _, ok := tiNames[mt.Name]; ok {
+			return fmt.Errorf("mute time interval %q is not unique", mt.Name)
+		}
+		tiNames[mt.Name] = struct{}{}
+	}
+	return checkTimeInterval(c.Route, tiNames)
+}
+
+func checkTimeInterval(r *Route, timeIntervals map[string]struct{}) error {
+	for _, sr := range r.Routes {
+		if err := checkTimeInterval(sr, timeIntervals); err != nil {
+			return err
+		}
+	}
+	if len(r.MuteTimeIntervals) == 0 {
+		return nil
+	}
+	for _, mt := range r.MuteTimeIntervals {
+		if _, ok := timeIntervals[mt]; !ok {
+			return fmt.Errorf("undefined time interval %q used in route", mt)
+		}
+	}
 	return nil
 }
 
@@ -868,22 +1020,6 @@ type PostableGrafanaReceiver struct {
 	DisableResolveMessage bool              `json:"disableResolveMessage"`
 	Settings              *simplejson.Json  `json:"settings"`
 	SecureSettings        map[string]string `json:"secureSettings"`
-}
-
-func (r *PostableGrafanaReceiver) GetDecryptedSecret(key string) (string, error) {
-	storedValue, ok := r.SecureSettings[key]
-	if !ok {
-		return "", nil
-	}
-	decodeValue, err := base64.StdEncoding.DecodeString(storedValue)
-	if err != nil {
-		return "", err
-	}
-	decryptedValue, err := util.Decrypt(decodeValue, setting.SecretKey)
-	if err != nil {
-		return "", err
-	}
-	return string(decryptedValue), nil
 }
 
 type ReceiverType int
@@ -1061,7 +1197,9 @@ type PostableGrafanaReceivers struct {
 	GrafanaManagedReceivers []*PostableGrafanaReceiver `yaml:"grafana_managed_receiver_configs,omitempty" json:"grafana_managed_receiver_configs,omitempty"`
 }
 
-func processReceiverConfigs(c []*PostableApiReceiver) error {
+type EncryptFn func(ctx context.Context, payload []byte, scope secrets.EncryptionOptions) ([]byte, error)
+
+func processReceiverConfigs(c []*PostableApiReceiver, encrypt EncryptFn) error {
 	seenUIDs := make(map[string]struct{})
 	// encrypt secure settings for storing them in DB
 	for _, r := range c {
@@ -1069,7 +1207,7 @@ func processReceiverConfigs(c []*PostableApiReceiver) error {
 		case GrafanaReceiverType:
 			for _, gr := range r.PostableGrafanaReceivers.GrafanaManagedReceivers {
 				for k, v := range gr.SecureSettings {
-					encryptedData, err := util.Encrypt([]byte(v), setting.SecretKey)
+					encryptedData, err := encrypt(context.Background(), []byte(v), secrets.WithoutScope())
 					if err != nil {
 						return fmt.Errorf("failed to encrypt secure settings: %w", err)
 					}

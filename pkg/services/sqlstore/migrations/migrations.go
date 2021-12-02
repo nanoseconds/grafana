@@ -1,6 +1,9 @@
 package migrations
 
 import (
+	"os"
+
+	"github.com/grafana/grafana/pkg/services/sqlstore/migrations/accesscontrol"
 	"github.com/grafana/grafana/pkg/services/sqlstore/migrations/ualert"
 	. "github.com/grafana/grafana/pkg/services/sqlstore/migrator"
 )
@@ -45,6 +48,11 @@ func (*OSSMigrations) AddMigration(mg *Migrator) {
 	addUserAuthTokenMigrations(mg)
 	addCacheMigration(mg)
 	addShortURLMigrations(mg)
+	// TODO Delete when unified alerting is enabled by default unconditionally (Grafana v9)
+	if err := ualert.CheckUnifiedAlertingEnabledByDefault(mg); err != nil { // this should always go before any other ualert migration
+		mg.Logger.Error("failed to determine the status of alerting engine. Enable either legacy or unified alerting explicitly and try again", "err", err)
+		os.Exit(1)
+	}
 	ualert.AddTablesMigrations(mg)
 	ualert.AddDashAlertMigration(mg)
 	addLibraryElementsMigrations(mg)
@@ -52,8 +60,10 @@ func (*OSSMigrations) AddMigration(mg *Migrator) {
 		addLiveChannelMigrations(mg)
 	}
 	ualert.RerunDashAlertMigration(mg)
+	addSecretsMigration(mg)
 	addKVStoreMigrations(mg)
 	ualert.AddDashboardUIDPanelIDMigration(mg)
+	accesscontrol.AddMigration(mg)
 }
 
 func addMigrationLogMigrations(mg *Migrator) {

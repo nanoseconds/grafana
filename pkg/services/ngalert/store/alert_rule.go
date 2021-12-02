@@ -426,7 +426,7 @@ func (st DBstore) GetNamespaceByTitle(ctx context.Context, namespace string, org
 	}
 
 	if withCanSave {
-		g := guardian.New(folder.Id, orgID, user)
+		g := guardian.New(ctx, folder.Id, orgID, user)
 		if canSave, err := g.CanSave(); err != nil || !canSave {
 			if err != nil {
 				st.Logger.Error("checking can save permission has failed", "userId", user.UserId, "username", user.Login, "namespace", namespace, "orgId", orgID, "error", err)
@@ -535,7 +535,7 @@ func (st DBstore) UpdateRuleGroup(cmd UpdateRuleGroupCmd) error {
 				continue
 			}
 
-			new := ngmodels.AlertRule{
+			newAlertRule := ngmodels.AlertRule{
 				OrgID:           cmd.OrgID,
 				Title:           r.GrafanaManagedAlert.Title,
 				Condition:       r.GrafanaManagedAlert.Condition,
@@ -549,9 +549,21 @@ func (st DBstore) UpdateRuleGroup(cmd UpdateRuleGroupCmd) error {
 			}
 
 			if r.ApiRuleNode != nil {
-				new.For = time.Duration(r.ApiRuleNode.For)
-				new.Annotations = r.ApiRuleNode.Annotations
-				new.Labels = r.ApiRuleNode.Labels
+				newAlertRule.For = time.Duration(r.ApiRuleNode.For)
+				newAlertRule.Annotations = r.ApiRuleNode.Annotations
+				newAlertRule.Labels = r.ApiRuleNode.Labels
+			}
+
+			if s := newAlertRule.Annotations[ngmodels.DashboardUIDAnnotation]; s != "" {
+				newAlertRule.DashboardUID = &s
+			}
+
+			if s := newAlertRule.Annotations[ngmodels.PanelIDAnnotation]; s != "" {
+				panelID, err := strconv.ParseInt(s, 10, 64)
+				if err != nil {
+					return fmt.Errorf("the %s annotation does not contain a valid Panel ID: %w", ngmodels.PanelIDAnnotation, err)
+				}
+				newAlertRule.PanelID = &panelID
 			}
 
 			if s := new.Annotations["__dashboardUid__"]; s != "" {
@@ -567,7 +579,7 @@ func (st DBstore) UpdateRuleGroup(cmd UpdateRuleGroupCmd) error {
 			}
 
 			upsertRule := UpsertRule{
-				New: new,
+				New: newAlertRule,
 			}
 
 			if existingGroupRule, ok := existingGroupRulesUIDs[r.GrafanaManagedAlert.UID]; ok {

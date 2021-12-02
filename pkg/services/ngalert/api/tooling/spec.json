@@ -494,6 +494,14 @@
         "operationId": "RoutePostTestReceivers",
         "parameters": [
           {
+            "x-go-name": "Alert",
+            "name": "alert",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/TestReceiversConfigAlertParams"
+            }
+          },
+          {
             "x-go-name": "Receivers",
             "name": "receivers",
             "in": "body",
@@ -2090,6 +2098,19 @@
       },
       "x-go-package": "github.com/prometheus/common/model"
     },
+    "LabelSet": {
+      "description": "A LabelSet is a collection of LabelName and LabelValue pairs.  The LabelSet\nmay be fully-qualified down to the point where it may resolve to a single\nMetric in the data store or not.  All operations that occur within the realm\nof a LabelSet can emit a vector of Metric entities to which the LabelSet may\nmatch.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/LabelValue"
+      },
+      "x-go-package": "github.com/prometheus/common/model"
+    },
+    "LabelValue": {
+      "type": "string",
+      "title": "A LabelValue is an associated value for a LabelName.",
+      "x-go-package": "github.com/prometheus/common/model"
+    },
     "Labels": {
       "description": "Labels is a sorted set of labels. Order has to be guaranteed upon\ninstantiation.",
       "type": "array",
@@ -3429,13 +3450,28 @@
       },
       "x-go-package": "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
     },
+    "TestReceiversConfigAlertParams": {
+      "type": "object",
+      "properties": {
+        "annotations": {
+          "$ref": "#/definitions/LabelSet"
+        },
+        "labels": {
+          "$ref": "#/definitions/LabelSet"
+        }
+      },
+      "x-go-package": "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
+    },
     "TestReceiversResult": {
       "type": "object",
       "properties": {
+        "alert": {
+          "$ref": "#/definitions/TestReceiversConfigAlertParams"
+        },
         "notified_at": {
           "type": "string",
           "format": "date-time",
-          "x-go-name": "NotifedAt"
+          "x-go-name": "NotifiedAt"
         },
         "receivers": {
           "type": "array",

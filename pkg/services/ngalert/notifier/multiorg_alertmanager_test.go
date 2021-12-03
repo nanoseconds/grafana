@@ -158,6 +158,7 @@ func TestMultiOrgAlertmanager_SyncAlertmanagersForOrgsWithFailures(t *testing.T)
 	orgStore := &FakeOrgStore{
 		orgs: []int64{1, 2, 3},
 	}
+
 	tmpDir, err := ioutil.TempDir("", "test")
 	require.NoError(t, err)
 	kvStore := newFakeKVStore(t)

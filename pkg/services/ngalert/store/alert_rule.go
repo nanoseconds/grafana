@@ -566,18 +566,6 @@ func (st DBstore) UpdateRuleGroup(cmd UpdateRuleGroupCmd) error {
 				newAlertRule.PanelID = &panelID
 			}
 
-			if s := new.Annotations["__dashboardUid__"]; s != "" {
-				new.DashboardUID = &s
-			}
-
-			if s := new.Annotations["__panelId__"]; s != "" {
-				panelID, err := strconv.ParseInt(s, 10, 64)
-				if err != nil {
-					return fmt.Errorf("the __panelId__ annotation does not contain a valid Panel ID: %w", err)
-				}
-				new.PanelID = &panelID
-			}
-
 			upsertRule := UpsertRule{
 				New: newAlertRule,
 			}

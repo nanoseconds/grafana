@@ -138,15 +138,12 @@ type MultiStatus struct{}
 // swagger:parameters RoutePostTestReceivers
 type TestReceiversConfigParams struct {
 	// in:body
-	Body TestReceiversConfigBodyParams
+	Alert *TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
+	// in:body
+	Receivers []*PostableApiReceiver `yaml:"receivers,omitempty" json:"receivers,omitempty"`
 }
 
-type TestReceiversConfigBodyParams struct {
-	Alert     *TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
-	Receivers []*PostableApiReceiver          `yaml:"receivers,omitempty" json:"receivers,omitempty"`
-}
-
-func (c *TestReceiversConfigBodyParams) ProcessConfig(encrypt EncryptFn) error {
+func (c *TestReceiversConfigParams) ProcessConfig(encrypt EncryptFn) error {
 	return processReceiverConfigs(c.Receivers, encrypt)
 }
 

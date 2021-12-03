@@ -138,12 +138,15 @@ type MultiStatus struct{}
 // swagger:parameters RoutePostTestReceivers
 type TestReceiversConfigParams struct {
 	// in:body
-	Alert *TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
-	// in:body
-	Receivers []*PostableApiReceiver `yaml:"receivers,omitempty" json:"receivers,omitempty"`
+	Body TestReceiversConfigBodyParams
 }
 
-func (c *TestReceiversConfigParams) ProcessConfig(encrypt EncryptFn) error {
+type TestReceiversConfigBodyParams struct {
+	Alert     *TestReceiversConfigAlertParams `yaml:"alert,omitempty" json:"alert,omitempty"`
+	Receivers []*PostableApiReceiver          `yaml:"receivers,omitempty" json:"receivers,omitempty"`
+}
+
+func (c *TestReceiversConfigBodyParams) ProcessConfig(encrypt EncryptFn) error {
 	return processReceiverConfigs(c.Receivers, encrypt)
 }
 
@@ -592,119 +595,6 @@ type Config struct {
 	InhibitRules      []*config.InhibitRule     `yaml:"inhibit_rules,omitempty" json:"inhibit_rules,omitempty"`
 	MuteTimeIntervals []config.MuteTimeInterval `yaml:"mute_time_intervals,omitempty" json:"mute_time_intervals,omitempty"`
 	Templates         []string                  `yaml:"templates" json:"templates"`
-}
-
-// A Route is a node that contains definitions of how to handle alerts. This is modified
-// from the upstream alertmanager in that it adds the ObjectMatchers property.
-type Route struct {
-	Receiver string `yaml:"receiver,omitempty" json:"receiver,omitempty"`
-
-	GroupByStr []string          `yaml:"group_by,omitempty" json:"group_by,omitempty"`
-	GroupBy    []model.LabelName `yaml:"-" json:"-"`
-	GroupByAll bool              `yaml:"-" json:"-"`
-	// Deprecated. Remove before v1.0 release.
-	Match map[string]string `yaml:"match,omitempty" json:"match,omitempty"`
-	// Deprecated. Remove before v1.0 release.
-	MatchRE           config.MatchRegexps `yaml:"match_re,omitempty" json:"match_re,omitempty"`
-	Matchers          config.Matchers     `yaml:"matchers,omitempty" json:"matchers,omitempty"`
-	ObjectMatchers    ObjectMatchers      `yaml:"object_matchers,omitempty" json:"object_matchers,omitempty"`
-	MuteTimeIntervals []string            `yaml:"mute_time_intervals,omitempty" json:"mute_time_intervals,omitempty"`
-	Continue          bool                `yaml:"continue" json:"continue,omitempty"`
-	Routes            []*Route            `yaml:"routes,omitempty" json:"routes,omitempty"`
-
-	GroupWait      *model.Duration `yaml:"group_wait,omitempty" json:"group_wait,omitempty"`
-	GroupInterval  *model.Duration `yaml:"group_interval,omitempty" json:"group_interval,omitempty"`
-	RepeatInterval *model.Duration `yaml:"repeat_interval,omitempty" json:"repeat_interval,omitempty"`
-}
-
-// UnmarshalYAML implements the yaml.Unmarshaler interface for Route. This is a copy of alertmanager's upstream except it removes validation on the label key.
-func (r *Route) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	type plain Route
-	if err := unmarshal((*plain)(r)); err != nil {
-		return err
-	}
-
-	for _, l := range r.GroupByStr {
-		if l == "..." {
-			r.GroupByAll = true
-		} else {
-			r.GroupBy = append(r.GroupBy, model.LabelName(l))
-		}
-	}
-
-	if len(r.GroupBy) > 0 && r.GroupByAll {
-		return fmt.Errorf("cannot have wildcard group_by (`...`) and other other labels at the same time")
-	}
-
-	groupBy := map[model.LabelName]struct{}{}
-
-	for _, ln := range r.GroupBy {
-		if _, ok := groupBy[ln]; ok {
-			return fmt.Errorf("duplicated label %q in group_by", ln)
-		}
-		groupBy[ln] = struct{}{}
-	}
-
-	if r.GroupInterval != nil && time.Duration(*r.GroupInterval) == time.Duration(0) {
-		return fmt.Errorf("group_interval cannot be zero")
-	}
-	if r.RepeatInterval != nil && time.Duration(*r.RepeatInterval) == time.Duration(0) {
-		return fmt.Errorf("repeat_interval cannot be zero")
-	}
-
-	return nil
-}
-
-// Return an alertmanager route from a Grafana route. The ObjectMatchers are converted to Matchers.
-func (r *Route) AsAMRoute() *config.Route {
-	amRoute := &config.Route{
-		Receiver:          r.Receiver,
-		GroupByStr:        r.GroupByStr,
-		GroupBy:           r.GroupBy,
-		GroupByAll:        r.GroupByAll,
-		Match:             r.Match,
-		MatchRE:           r.MatchRE,
-		Matchers:          append(r.Matchers, r.ObjectMatchers...),
-		MuteTimeIntervals: r.MuteTimeIntervals,
-		Continue:          r.Continue,
-
-		GroupWait:      r.GroupWait,
-		GroupInterval:  r.GroupInterval,
-		RepeatInterval: r.RepeatInterval,
-
-		Routes: make([]*config.Route, 0, len(r.Routes)),
-	}
-	for _, rt := range r.Routes {
-		amRoute.Routes = append(amRoute.Routes, rt.AsAMRoute())
-	}
-
-	return amRoute
-}
-
-// Return a Grafana route from an alertmanager route. The Matchers are converted to ObjectMatchers.
-func AsGrafanaRoute(r *config.Route) *Route {
-	gRoute := &Route{
-		Receiver:          r.Receiver,
-		GroupByStr:        r.GroupByStr,
-		GroupBy:           r.GroupBy,
-		GroupByAll:        r.GroupByAll,
-		Match:             r.Match,
-		MatchRE:           r.MatchRE,
-		ObjectMatchers:    ObjectMatchers(r.Matchers),
-		MuteTimeIntervals: r.MuteTimeIntervals,
-		Continue:          r.Continue,
-
-		GroupWait:      r.GroupWait,
-		GroupInterval:  r.GroupInterval,
-		RepeatInterval: r.RepeatInterval,
-
-		Routes: make([]*Route, 0, len(r.Routes)),
-	}
-	for _, rt := range r.Routes {
-		gRoute.Routes = append(gRoute.Routes, AsGrafanaRoute(rt))
-	}
-
-	return gRoute
 }
 
 // A Route is a node that contains definitions of how to handle alerts. This is modified

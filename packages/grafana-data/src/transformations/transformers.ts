@@ -19,8 +19,10 @@ import { renameByRegexTransformer } from './transformers/renameByRegex';
 import { filterByValueTransformer } from './transformers/filterByValue';
 import { histogramTransformer } from './transformers/histogram';
 import { convertFieldTypeTransformer } from './transformers/convertFieldType';
+import { calculateToRowTransformer } from './transformers/calculateToRow';
 
 export const standardTransformers = {
+  calculateToRowTransformer,
   noopTransformer,
   filterFieldsTransformer,
   filterFieldsByNameTransformer,

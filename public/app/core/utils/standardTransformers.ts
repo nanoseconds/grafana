@@ -20,9 +20,11 @@ import { prepareTimeseriesTransformerRegistryItem } from '../components/Transfor
 import { convertFieldTypeTransformRegistryItem } from '../components/TransformersUI/ConvertFieldTypeTransformerEditor';
 import { fieldLookupTransformRegistryItem } from '../components/TransformersUI/lookupGazetteer/FieldLookupTransformerEditor';
 import { extractFieldsTransformRegistryItem } from '../components/TransformersUI/extractFields/ExtractFieldsTransformerEditor';
+import { calculateToRowTransformRegistryItem } from '../components/TransformersUI/CalculateToRowTransformerEditor';
 
 export const getStandardTransformers = (): Array<TransformerRegistryItem<any>> => {
   return [
+    calculateToRowTransformRegistryItem,
     reduceTransformRegistryItem,
     filterFieldsByNameTransformRegistryItem,
     renameByRegexTransformRegistryItem,

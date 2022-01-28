@@ -29,4 +29,5 @@ export enum DataTransformerID {
   convertFieldType = 'convertFieldType',
   fieldLookup = 'fieldLookup',
   extractFields = 'extractFields',
+  calculateToRow = 'calculateToRow',
 }

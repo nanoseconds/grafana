@@ -2,6 +2,7 @@ import React from 'react';
 import {
   DataLink,
   dataLinksOverrideProcessor,
+  headerLinksOverrideProcessor,
   FieldConfigPropertyItem,
   FieldType,
   NumberFieldConfigSettings,
@@ -209,6 +210,21 @@ export const getStandardFieldConfigs = () => {
     getItemsCount: (value) => (value ? value.length : 0),
   };
 
+  const headerLinks: FieldConfigPropertyItem<any, DataLink[], StringFieldConfigSettings> = {
+    id: 'headerLinks',
+    path: 'headerLinks',
+    name: 'Header Links',
+    description: 'Make the header linkable to other URL',
+    editor: standardEditorsRegistry.get('links').editor as any,
+    override: standardEditorsRegistry.get('links').editor as any,
+    process: headerLinksOverrideProcessor,
+    settings: {
+      placeholder: '-',
+    },
+    shouldApply: () => true,
+    category: ['Header links'],
+  };
+
   const color: FieldConfigPropertyItem<any, FieldColor | undefined, FieldColorConfigSettings> = {
     id: 'color',
     path: 'color',
@@ -224,7 +240,7 @@ export const getStandardFieldConfigs = () => {
     category,
   };
 
-  return [unit, min, max, decimals, displayName, color, noValue, thresholds, mappings, links];
+  return [unit, min, max, decimals, displayName, color, noValue, thresholds, mappings, links, headerLinks];
 };
 
 /**

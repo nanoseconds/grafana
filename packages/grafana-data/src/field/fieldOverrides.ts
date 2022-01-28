@@ -37,6 +37,7 @@ import { getFieldDisplayValuesProxy } from './getFieldDisplayValuesProxy';
 import { standardFieldConfigEditorRegistry } from './standardFieldConfigEditorRegistry';
 import { getTemplateProxyForField } from './templateProxies';
 
+
 interface OverrideProps {
   match: FieldMatcher;
   properties: DynamicConfigValue[];
@@ -202,6 +203,9 @@ export function applyFieldOverrides(options: ApplyFieldOverrideOptions): DataFra
         context.replaceVariables,
         options.timeZone
       );
+
+      // waiting Attach header links supplier
+      field.getHeaderLinks = getHeaderLinksSupplier(newFrame, field, field.state!.scopedVars, context.replaceVariables, options.timeZone);
     }
 
     return newFrame;
@@ -350,119 +354,169 @@ export function validateFieldConfig(config: FieldConfig) {
   }
 }
 
-export const getLinksSupplier =
-  (
-    frame: DataFrame,
-    field: Field,
-    fieldScopedVars: ScopedVars,
-    replaceVariables: InterpolateFunction,
-    timeZone?: TimeZone
-  ) =>
-  (config: ValueLinkConfig): Array<LinkModel<Field>> => {
-    if (!field.config.links || field.config.links.length === 0) {
-      return [];
-    }
-    const timeRangeUrl = locationUtil.getTimeRangeUrlParams();
-    const { timeField } = getTimeField(frame);
 
-    return field.config.links.map((link: DataLink) => {
-      const variablesQuery = locationUtil.getVariablesUrlParams();
-      let dataFrameVars = {};
-      let valueVars = {};
+const makeLinkSupplier = (
+  frame: DataFrame,
+  field: Field,
+  config: ValueLinkConfig,
+  link: DataLink,
+  rest: {
+    timeRangeUrl: string | null;
+    timeField?: Field;
+    fieldScopedVars: ScopedVars;
+    replaceVariables: InterpolateFunction;
+    timeZone: TimeZone;
+  }
+): LinkModel<Field> => {
+  const { timeRangeUrl, timeField, fieldScopedVars, replaceVariables, timeZone } = rest;
+  const variablesQuery = locationUtil.getVariablesUrlParams();
+  let dataFrameVars = {};
+  let valueVars = {};
 
-      // We are not displaying reduction result
-      if (config.valueRowIndex !== undefined && !isNaN(config.valueRowIndex)) {
-        const fieldsProxy = getFieldDisplayValuesProxy({
-          frame,
-          rowIndex: config.valueRowIndex,
-          timeZone: timeZone,
-        });
-
-        valueVars = {
-          raw: field.values.get(config.valueRowIndex),
-          numeric: fieldsProxy[field.name].numeric,
-          text: fieldsProxy[field.name].text,
-          time: timeField ? timeField.values.get(config.valueRowIndex) : undefined,
-        };
-
-        dataFrameVars = {
-          __data: {
-            value: {
-              name: frame.name,
-              refId: frame.refId,
-              fields: fieldsProxy,
-            },
-            text: 'Data',
-          },
-        };
-      } else {
-        if (config.calculatedValue) {
-          valueVars = {
-            raw: config.calculatedValue.numeric,
-            numeric: config.calculatedValue.numeric,
-            text: formattedValueToString(config.calculatedValue),
-          };
-        }
-      }
-
-      const variables = {
-        ...fieldScopedVars,
-        __value: {
-          text: 'Value',
-          value: valueVars,
-        },
-        ...dataFrameVars,
-        [DataLinkBuiltInVars.keepTime]: {
-          text: timeRangeUrl,
-          value: timeRangeUrl,
-        },
-        [DataLinkBuiltInVars.includeVars]: {
-          text: variablesQuery,
-          value: variablesQuery,
-        },
-      };
-
-      if (link.onClick) {
-        return {
-          href: link.url,
-          title: replaceVariables(link.title || '', variables),
-          target: link.targetBlank ? '_blank' : undefined,
-          onClick: (evt, origin) => {
-            link.onClick!({
-              origin: origin ?? field,
-              e: evt,
-              replaceVariables: (v) => replaceVariables(v, variables),
-            });
-          },
-          origin: field,
-        };
-      }
-
-      if (link.internal) {
-        // For internal links at the moment only destination is Explore.
-        return mapInternalLinkToExplore({
-          link,
-          internalLink: link.internal,
-          scopedVars: variables,
-          field,
-          range: {} as any,
-          replaceVariables,
-        });
-      }
-
-      let href = locationUtil.assureBaseUrl(link.url.replace(/\n/g, ''));
-      href = replaceVariables(href, variables);
-      href = locationUtil.processUrl(href);
-
-      const info: LinkModel<Field> = {
-        href,
-        title: replaceVariables(link.title || '', variables),
-        target: link.targetBlank ? '_blank' : undefined,
-        origin: field,
-      };
-      return info;
+  // We are not displaying reduction result
+  if (config.valueRowIndex !== undefined && !isNaN(config.valueRowIndex)) {
+    const fieldsProxy = getFieldDisplayValuesProxy({
+      frame,
+      rowIndex: config.valueRowIndex,
+      timeZone: timeZone,
     });
+
+    valueVars = {
+      raw: field.values.get(config.valueRowIndex),
+      numeric: fieldsProxy[field.name].numeric,
+      text: fieldsProxy[field.name].text,
+      time: timeField ? timeField.values.get(config.valueRowIndex) : undefined,
+    };
+
+    dataFrameVars = {
+      __data: {
+        value: {
+          name: frame.name,
+          refId: frame.refId,
+          fields: fieldsProxy,
+        },
+        text: 'Data',
+      },
+    };
+  } else {
+    if (config.calculatedValue) {
+      valueVars = {
+        raw: config.calculatedValue.numeric,
+        numeric: config.calculatedValue.numeric,
+        text: formattedValueToString(config.calculatedValue),
+      };
+    }
+  }
+
+  const variables = {
+    ...fieldScopedVars,
+    __value: {
+      text: 'Value',
+      value: valueVars,
+    },
+    ...dataFrameVars,
+    [DataLinkBuiltInVars.keepTime]: {
+      text: timeRangeUrl,
+      value: timeRangeUrl,
+    },
+    [DataLinkBuiltInVars.includeVars]: {
+      text: variablesQuery,
+      value: variablesQuery,
+    },
   };
+
+  if (link.onClick) {
+    return {
+      href: link.url,
+      title: replaceVariables(link.title || '', variables),
+      target: link.targetBlank ? '_blank' : undefined,
+      onClick: (evt, origin) => {
+        link.onClick!({
+          origin: origin ?? field,
+          e: evt,
+          replaceVariables: (v) => replaceVariables(v, variables),
+        });
+      },
+      origin: field,
+    };
+  }
+
+  if (link.internal) {
+    // For internal links at the moment only destination is Explore.
+    return mapInternalLinkToExplore({
+      link,
+      internalLink: link.internal,
+      scopedVars: variables,
+      field,
+      range: {} as any,
+      replaceVariables,
+    });
+  }
+
+  let href = locationUtil.assureBaseUrl(link.url.replace(/\n/g, ''));
+  href = replaceVariables(href, variables);
+  href = locationUtil.processUrl(href);
+
+  const info: LinkModel<Field> = {
+    href,
+    title: replaceVariables(link.title || '', variables),
+    target: link.targetBlank ? '_blank' : undefined,
+    origin: field,
+  };
+  return info;
+}
+
+
+export const getLinksSupplier = (
+  frame: DataFrame,
+  field: Field,
+  fieldScopedVars: ScopedVars,
+  replaceVariables: InterpolateFunction,
+  timeZone?: TimeZone
+) => (config: ValueLinkConfig): Array<LinkModel<Field>> => {
+  if (!field.config.links || field.config.links.length === 0) {
+    return [];
+  }
+  const timeRangeUrl = locationUtil.getTimeRangeUrlParams();
+  const { timeField } = getTimeField(frame);
+
+  return field.config.links.map((link: DataLink) => 
+    makeLinkSupplier(frame, field, config, link, {
+      timeRangeUrl,
+      timeField,
+      fieldScopedVars,
+      replaceVariables,
+      timeZone,
+    })
+  );
+};
+
+
+export const getHeaderLinksSupplier = (
+  frame: DataFrame,
+  field: Field,
+  fieldScopedVars: ScopedVars,
+  replaceVariables: InterpolateFunction,
+  timeZone: TimeZone,
+) => (config: ValueLinkConfig): Array<LinkModel<Field>> => {
+  if (!field.config.headerLinks || field.config.headerLinks.length === 0) {
+    return [];
+  }
+
+  const timeRangeUrl = locationUtil.getTimeRangeUrlParams();
+  const { timeField } = getTimeField(frame);
+
+  return field.config.headerLinks.map((link: DataLink) =>
+    makeLinkSupplier(frame, field, config, link, {
+      timeRangeUrl,
+      timeField,
+      fieldScopedVars,
+      replaceVariables,
+      timeZone,
+    })
+  );
+};
+
 
 /**
  * Return a copy of the DataFrame with raw data

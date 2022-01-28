@@ -1,11 +1,12 @@
 import { clamp } from 'lodash';
 
-import { TimeZone } from '../types';
 import { DecimalCount } from '../types/displayValue';
 
 import { getCategories } from './categories';
 import { toDateTimeValueFormatter } from './dateTimeFormatters';
 import { getOffsetFromSIPrefix, SIPrefix, currency } from './symbolFormatters';
+import { TimeZone, Field, DisplayValue } from '../types';
+import { fieldReducers } from '../transformations/fieldReducer';
 
 export interface FormattedValue {
   text: string;
@@ -15,6 +16,27 @@ export interface FormattedValue {
 
 export function formattedValueToString(val: FormattedValue): string {
   return `${val.prefix ?? ''}${val.text}${val.suffix ?? ''}`;
+}
+
+
+export function appendCalculatedMethodToValue(
+  field: Field,
+  row: { [key: string]: any },
+  val: DisplayValue
+): DisplayValue {
+  const rowIndex: number = row.index;
+  const statValues = field.config.statValues || [];
+
+  const statValue = statValues.find(value => value.index.row === rowIndex);
+
+  if (statValue) {
+    const name = fieldReducers.get(statValue.id).name;
+    return {
+      ...val,
+      suffix: [val.suffix ?? '', !!val.text ? `(${name})` : ''].join(' '),
+    };
+  }
+  return val;
 }
 
 export type ValueFormatter = (

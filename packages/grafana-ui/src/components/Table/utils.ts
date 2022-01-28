@@ -31,6 +31,7 @@ import {
   GrafanaTableColumn,
   TableFooterCalc,
 } from './types';
+import { basic } from './sortTypes.ts';
 
 export function getTextAlign(field?: Field): Property.JustifyContent {
   if (!field) {
@@ -61,10 +62,27 @@ export function getColumns(
   data: DataFrame,
   availableWidth: number,
   columnMinWidth: number,
-  footerValues?: FooterItem[]
+  footerValues?: FooterItem[],
+  showRowNum?: boolean
 ): GrafanaTableColumn[] {
   const columns: GrafanaTableColumn[] = [];
   let fieldCountWithoutWidth = 0;
+  const statValueRowIdxs = data.fields
+      .flatMap((field) => field.config.statValues || [])
+      .flatMap((statV) => statV.index.row);
+  if (showRowNum) {
+    columns.push({
+      DefaultCell,
+      minWidth: 60,
+      id: 'RowIndex',
+      isIndexColumn: true,
+      Header: '#',
+      disableSortBy: true,
+      justifyContent: getTextAlign(null),
+      statValueRowIdxs: statValueRowIdxs,
+    });
+    fieldCountWithoutWidth++;
+  }
 
   for (const [fieldIndex, field] of data.fields.entries()) {
     const fieldTableOptions = (field.config.custom || {}) as TableFieldOptions;
@@ -105,6 +123,7 @@ export function getColumns(
       filter: memoizeOne(filterByValue(field)),
       justifyContent: getTextAlign(field),
       Footer: getFooterValue(fieldIndex, footerValues),
+      statValueRowIdxs: statValueRowIdxs,
     });
   }
 
@@ -321,4 +340,32 @@ export function createFooterCalculationValues(rows: Row[]): any[number] {
   }
 
   return values;
+}
+
+function wrapSortFunc(rowA: Row<any>, rowB: Row<any>, id: string, sortFunc: any) {
+  for(const row of [rowA, rowB]) {
+    if(row.cells.length <= 0) {
+      continue;
+    }
+    const column = row.cells[0].column;
+    if (column && column.statValueRowIdxs) {
+      const ignoreSort = column.statValueRowIdxs.includes(rowA.index) || column.statValueRowIdxs.includes(rowB.index);
+      if (ignoreSort) {
+        return false;
+      }
+    }
+  }
+  return sortFunc(rowA, rowB, id);
+}
+
+export function wrapBasic(rowA: Row<any>, rowB: Row<any>, id: string) {
+  return wrapSortFunc(rowA, rowB, id, basic);
+}
+
+export function wrapSortNumber(rowA: Row<any>, rowB: Row<any>, id: string) {
+  return wrapSortFunc(rowA, rowB, id, sortNumber);
+}
+
+export function wrapSortCaseInsensitive(rowA: Row<any>, rowB: Row<any>, id: string) {
+  return wrapSortFunc(rowA, rowB, id, sortCaseInsensitive);
 }

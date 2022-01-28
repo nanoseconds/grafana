@@ -25,6 +25,7 @@ import {
   StatsPickerConfigSettings,
   displayNameOverrideProcessor,
   FieldNamePickerConfigSettings,
+  headerLinksOverrideProcessor,
 } from '@grafana/data';
 import { RadioButtonGroup, TimeZonePicker, Switch } from '@grafana/ui';
 import { FieldNamePicker } from '@grafana/ui/src/components/MatchersUI/FieldNamePicker';
@@ -381,5 +382,20 @@ export const getAllStandardFieldConfigs = () => {
     getItemsCount: (value) => (value ? value.steps.length : 0),
   };
 
-  return [unit, min, max, decimals, displayName, color, noValue, links, mappings, thresholds];
+  const headerLinks: FieldConfigPropertyItem<any, DataLink[], StringFieldConfigSettings> = {
+    id: 'headerLinks',
+    path: 'headerLinks',
+    name: 'Header Links',
+    description: 'Make the header linkable to other URL',
+    editor: standardEditorsRegistry.get('links').editor as any,
+    override: standardEditorsRegistry.get('links').editor as any,
+    process: headerLinksOverrideProcessor,
+    settings: {
+      placeholder: '-',
+    },
+    shouldApply: () => true,
+    category: ['Header links'],
+  };
+
+  return [unit, min, max, decimals, displayName, color, noValue, links, mappings, thresholds, headerLinks];
 };

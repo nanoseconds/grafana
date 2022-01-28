@@ -1,5 +1,6 @@
 import { TransformerRegistryItem } from '@grafana/data';
 
+import { calculateToRowTransformRegistryItem } from './CalculateToRowTransformerEditor';
 import { filterByValueTransformRegistryItem } from './FilterByValueTransformer/FilterByValueTransformerEditor';
 import { heatmapTransformRegistryItem } from './calculateHeatmap/HeatmapTransformerEditor';
 import { configFromQueryTransformRegistryItem } from './configFromQuery/ConfigFromQueryTransformerEditor';
@@ -55,5 +56,6 @@ export const getStandardTransformers = (): Array<TransformerRegistryItem<any>> =
     groupingToMatrixTransformRegistryItem,
     limitTransformRegistryItem,
     joinByLabelsTransformRegistryItem,
+    calculateToRowTransformRegistryItem,
   ];
 };

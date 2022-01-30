@@ -5,15 +5,14 @@ name: default
 volumes:
 - name: dockersock
   host:
-    path: /var/run/
+    path: /var/run/docker.sock
 
 steps:
 - name: build
-  image: docker:19
-  privileged: true
+  image: docker:dind
   volumes:
   - name: dockersock
-    path: /var/run/
+    path: /var/run/docker.sock
   commands:
   - docker build --network=host -t k8s-registry.nanotrading.io/grafana/grafana .
   - docker push k8s-registry.nanotrading.io/grafana/grafana

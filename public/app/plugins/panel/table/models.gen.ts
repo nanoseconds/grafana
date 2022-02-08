@@ -15,6 +15,7 @@ export const modelVersion = Object.freeze([1, 0]);
 export interface PanelOptions {
   frameIndex: number;
   showHeader: boolean;
+  showRowNum: boolean;
   showTypeIcons?: boolean;
   sortBy?: TableSortByFieldState[];
   footer?: TableFooterCalc; // TODO: should be array (options builder is limited)
@@ -29,6 +30,7 @@ export interface TableFooterCalc {
 export const defaultPanelOptions: PanelOptions = {
   frameIndex: 0,
   showHeader: true,
+  showRowNum: true,
   showTypeIcons: false,
   footer: {
     show: false,

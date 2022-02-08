@@ -13,7 +13,7 @@ import {
   useTable,
 } from 'react-table';
 import { FixedSizeList } from 'react-window';
-import { getColumns, sortCaseInsensitive, sortNumber } from './utils';
+import { getColumns, wrapSortCaseInsensitive, wrapSortNumber, wrapBasic } from './utils';
 import {
   TableColumnResizeActionCallback,
   TableFilterActionCallback,
@@ -38,6 +38,7 @@ export interface Props {
   /** Minimal column width specified in pixels */
   columnMinWidth?: number;
   noHeader?: boolean;
+  showRowNum?: boolean;
   showTypeIcons?: boolean;
   resizable?: boolean;
   initialSortBy?: TableSortByFieldState[];
@@ -122,6 +123,7 @@ export const Table: FC<Props> = memo((props: Props) => {
     width,
     columnMinWidth = COLUMN_MIN_WIDTH,
     noHeader,
+    showRowNum,
     resizable = true,
     initialSortBy,
     footerValues,
@@ -142,11 +144,12 @@ export const Table: FC<Props> = memo((props: Props) => {
   }, [data]);
 
   // React-table column definitions
-  const memoizedColumns = useMemo(() => getColumns(data, width, columnMinWidth, footerValues), [
+  const memoizedColumns = useMemo(() => getColumns(data, width, columnMinWidth, footerValues, showRowNum), [
     data,
     width,
     columnMinWidth,
     footerValues,
+    showRowNum,
   ]);
 
   // Internal react table state reducer
@@ -160,8 +163,9 @@ export const Table: FC<Props> = memo((props: Props) => {
       stateReducer: stateReducer,
       initialState: getInitialState(initialSortBy, memoizedColumns),
       sortTypes: {
-        number: sortNumber, // the builtin number type on react-table does not handle NaN values
-        'alphanumeric-insensitive': sortCaseInsensitive, // should be replace with the builtin string when react-table is upgraded, see https://github.com/tannerlinsley/react-table/pull/3235
+        number: wrapSortNumber, // the builtin number type on react-table does not handle NaN values
+        'alphanumeric-insensitive': wrapSortCaseInsensitive, // should be replace with the builtin string when react-table is upgraded, see https://github.com/tannerlinsley/react-table/pull/3235
+        basic: wrapBasic,
       },
     }),
     [initialSortBy, memoizedColumns, memoizedData, resizable, stateReducer]
@@ -181,16 +185,36 @@ export const Table: FC<Props> = memo((props: Props) => {
       prepareRow(row);
       return (
         <div {...row.getRowProps({ style })} className={tableStyles.row}>
-          {row.cells.map((cell: Cell, index: number) => (
-            <TableCell
-              key={index}
-              tableStyles={tableStyles}
-              cell={cell}
-              onCellFilterAdded={onCellFilterAdded}
-              columnIndex={index}
-              columnCount={row.cells.length}
-            />
-          ))}
+          {row.cells.map((cell: Cell, index: number) => {
+            const indexColumn: boolean = cell.column.isIndexColumn;
+            const statValueRowIdxs = (cell.column.statValueRowIdxs ?? []).sort();
+            const ignoreRowNum: boolean = statValueRowIdxs.includes(rowIndex);
+            var rowNum = rowIndex;
+            for (var i = 0; i < statValueRowIdxs.length; i++) {
+              if (rowIndex < statValueRowIdxs[i]) {
+                break;
+              }
+              rowNum--;
+            }
+            if (indexColumn && !ignoreRowNum) {
+              return (
+                <div key="0" role="cell" className="css-1hscq0n" style={cell.getCellProps().style}>
+                  <div className="css-1w5pd0q">{rowNum + 1}</div>
+                </div>
+              );
+            } else if (!indexColumn) {
+              return (
+                <TableCell
+                  key={index}
+                  tableStyles={tableStyles}
+                  cell={cell}
+                  onCellFilterAdded={onCellFilterAdded}
+                  columnIndex={index}
+                  columnCount={row.cells.length}
+                />
+              );
+            }
+          })}
         </div>
       );
     },

@@ -52,10 +52,10 @@ export function getColumns(
 ): GrafanaTableColumn[] {
   const columns: GrafanaTableColumn[] = [];
   let fieldCountWithoutWidth = 0;
-  if (showRowNum) {
-    const statValueRowIdxs = data.fields
+  const statValueRowIdxs = data.fields
       .flatMap((field) => field.config.statValues || [])
       .flatMap((statV) => statV.index.row);
+  if (showRowNum) {
     columns.push({
       DefaultCell,
       minWidth: 60,
@@ -108,6 +108,7 @@ export function getColumns(
       filter: memoizeOne(filterByValue(field)),
       justifyContent: getTextAlign(field),
       Footer: getFooterValue(fieldIndex, footerValues),
+      statValueRowIdxs: statValueRowIdxs,
     });
   }
 
@@ -270,19 +271,16 @@ function toNumber(value: any): number {
 }
 
 function wrapSortFunc(rowA: Row<any>, rowB: Row<any>, id: string, sortFunc: any) {
-  const rowAIdx = rowA.index;
-  const rowBIdx = rowB.index;
-  let column;
-  if (rowA.cells.length > 0 && rowA.cells[0]) {
-    column = rowA.cells[0].column;
-  }
-  if (!column && rowB.cells.length > 0 && rowB.cells[0]) {
-    column = rowB.cells[0].column;
-  }
-  if (column && column.isIndexColumn && column.statValueRowIdxs) {
-    const ignoreSort: boolean = column.statValueRowIdxs.includes(rowAIdx) || column.statValueRowIdxs.includes(rowBIdx);
-    if (ignoreSort) {
-      return false;
+  for(const row of [rowA, rowB]) {
+    if(row.cells.length <= 0) {
+      continue;
+    }
+    const column = row.cells[0].column;
+    if (column && column.statValueRowIdxs) {
+      const ignoreSort = column.statValueRowIdxs.includes(rowA.index) || column.statValueRowIdxs.includes(rowB.index);
+      if (ignoreSort) {
+        return false;
+      }
     }
   }
   return sortFunc(rowA, rowB, id);

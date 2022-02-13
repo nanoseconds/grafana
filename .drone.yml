@@ -14,5 +14,5 @@ steps:
   - name: dockersock
     path: /var/run
   commands:
-  - docker build --network=host -t k8s-registry.nanotrading.io/grafana/grafana .
-  - docker push k8s-registry.nanotrading.io/grafana/grafana
+  - docker build --network=host -t k8s-registry.nanotrading.io/grafana/grafana:${DRONE_BRANCH}-${DRONE_COMMIT:32} .
+  - docker push k8s-registry.nanotrading.io/grafana/grafana:${DRONE_BRANCH}-${DRONE_COMMIT:32}

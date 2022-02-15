@@ -30,7 +30,7 @@ export interface TableFooterCalc {
 export const defaultPanelOptions: PanelOptions = {
   frameIndex: 0,
   showHeader: true,
-  showRowNum: true,
+  showRowNum: false,
   showTypeIcons: false,
   footer: {
     show: false,

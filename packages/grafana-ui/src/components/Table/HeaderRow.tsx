@@ -13,10 +13,11 @@ export interface HeaderRowProps {
   headerGroups: HeaderGroup[];
   data: DataFrame;
   showTypeIcons?: boolean;
+  showRowNum?: boolean;
 }
 
 export const HeaderRow = (props: HeaderRowProps) => {
-  const { headerGroups, data, showTypeIcons } = props;
+  const { headerGroups, data, showTypeIcons, showRowNum } = props;
   const e2eSelectorsTable = selectors.components.Panels.Visualization.Table;
   const tableStyles = useStyles2(getTableStyles);
 
@@ -33,7 +34,7 @@ export const HeaderRow = (props: HeaderRowProps) => {
             role="row"
           >
             {headerGroup.headers.map((column: Column, index: number) =>
-              renderHeaderCell(column, tableStyles, data.fields[index], showTypeIcons)
+              renderHeaderCell(column, tableStyles, data.fields[index - (showRowNum ? 1 : 0)], showTypeIcons)
             )}
           </div>
         );

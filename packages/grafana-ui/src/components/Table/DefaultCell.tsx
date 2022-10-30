@@ -36,10 +36,12 @@ export const DefaultCell: FC<TableCellProps> = (props) => {
   const cellStyle = getCellStyle(tableStyles, field, displayValue, inspectEnabled);
 
   const hasLinks = Boolean(getCellLinks(field, row)?.length);
+  const cellShowHtmlYf = field.config.custom?.displayMode === TableCellDisplayMode.HTML;
 
   return (
     <div {...cellProps} className={cellStyle}>
-      {!hasLinks && <div className={tableStyles.cellText}>{value}</div>}
+      {!hasLinks && !cellShowHtmlYf && <div className={tableStyles.cellText}>{value}</div>}
+      {!hasLinks && cellShowHtmlYf && <div className={tableStyles.cellText} dangerouslySetInnerHTML={{__html: value}} ></div>}
 
       {hasLinks && (
         <DataLinksContextMenu links={() => getCellLinks(field, row) || []}>

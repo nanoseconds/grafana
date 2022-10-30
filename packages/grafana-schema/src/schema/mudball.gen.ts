@@ -256,6 +256,7 @@ export enum TableCellDisplayMode {
   ColorBackgroundSolid = 'color-background-solid',
   ColorText = 'color-text',
   GradientGauge = 'gradient-gauge',
+  HTML = 'html',
   Image = 'image',
   JSONView = 'json-view',
   LcdGauge = 'lcd-gauge',

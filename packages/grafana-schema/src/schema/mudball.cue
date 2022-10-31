@@ -252,6 +252,7 @@ BarGaugeDisplayMode: "basic" | "lcd" | "gradient" @cuetsy(kind="enum")
 // TODO docs
 TableFieldOptions: {
 	width?:      number
+	rowHeight?:  number
 	minWidth?:   number
 	align: FieldTextAlignment | *"auto"
 	displayMode: TableCellDisplayMode | *"auto"

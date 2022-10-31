@@ -315,6 +315,7 @@ export interface TableFieldOptions {
   hidden?: boolean;
   inspect: boolean;
   minWidth?: number;
+  rowHeight?: number;
   width?: number;
 }
 

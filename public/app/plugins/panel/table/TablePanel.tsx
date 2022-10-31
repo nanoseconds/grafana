@@ -95,13 +95,13 @@ export class TablePanel extends Component<Props> {
   };
 
   renderTable(frame: DataFrame, width: number, height: number) {
-    const { options } = this.props;
-
+    const { options, fieldConfig } = this.props; // yf
     return (
       <Table
         height={height}
         width={width}
         data={frame}
+        rowHeight={fieldConfig.defaults.custom.rowHeight} // yf
         noHeader={!options.showHeader}
         showRowNum={options.showRowNum}
         showTypeIcons={options.showTypeIcons}

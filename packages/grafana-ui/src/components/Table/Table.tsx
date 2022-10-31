@@ -21,7 +21,7 @@ import { Pagination } from '../Pagination/Pagination';
 import { FooterRow } from './FooterRow';
 import { HeaderRow } from './HeaderRow';
 import { TableCell } from './TableCell';
-import { getTableStyles } from './styles';
+import { getTableStylesYf } from './styles';
 import { getColumns, wrapSortCaseInsensitive, wrapSortNumber, wrapBasic,getFooterItems, createFooterCalculationValues } from './utils';
 import {
   TableColumnResizeActionCallback,
@@ -33,6 +33,7 @@ import {
 } from './types';
 
 const COLUMN_MIN_WIDTH = 150;
+// const ROW_MIN_HEIGHT_YF = 35;
 
 export interface Props {
   ariaLabel?: string;
@@ -41,6 +42,7 @@ export interface Props {
   height: number;
   /** Minimal column width specified in pixels */
   columnMinWidth?: number;
+  rowHeight: number; //yf
   noHeader?: boolean;
   showRowNum?: boolean;
   showTypeIcons?: boolean;
@@ -128,6 +130,7 @@ export const Table: FC<Props> = memo((props: Props) => {
     columnMinWidth = COLUMN_MIN_WIDTH,
     noHeader,
     showRowNum,
+    rowHeight,
     resizable = true,
     initialSortBy,
     footerOptions,
@@ -139,7 +142,7 @@ export const Table: FC<Props> = memo((props: Props) => {
   const listRef = useRef<FixedSizeList>(null);
   const tableDivRef = useRef<HTMLDivElement>(null);
   const fixedSizeListScrollbarRef = useRef<HTMLDivElement>(null);
-  const tableStyles = useStyles2(getTableStyles);
+  const tableStyles = useStyles2(getTableStylesYf(rowHeight));
   const theme = useTheme2();
   const headerHeight = noHeader ? 0 : tableStyles.cellHeight;
   const [footerItems, setFooterItems] = useState<FooterItem[] | undefined>(footerValues);
@@ -234,10 +237,12 @@ export const Table: FC<Props> = memo((props: Props) => {
       return;
     }
 
+    // yf
+    const headers = showRowNum? headerGroups[0].headers.slice(1) :headerGroups[0].headers;
     if (footerOptions.show) {
       setFooterItems(
         getFooterItems(
-          headerGroups[0].headers as unknown as Array<{ field: Field }>,
+          headers as unknown as Array<{ field: Field }>,
           createFooterCalculationValues(rows),
           footerOptions,
           theme

@@ -47,6 +47,17 @@ export const plugin = new PanelPlugin<PanelOptions, TableFieldOptions>(TablePane
           shouldApply: () => true,
           defaultValue: defaultPanelFieldConfig.width,
         })
+        .addNumberInput({
+          path: 'rowHeight',
+          name: 'Row height',
+          settings: {
+            placeholder: 'auto',
+            min: 30,
+            max: 300,
+          },
+          shouldApply: () => true,
+          defaultValue: defaultPanelFieldConfig.rowHeight,
+        })
         .addRadio({
           path: 'align',
           name: 'Column alignment',

@@ -84,6 +84,7 @@ COPY --from=js-builder /usr/src/app/public public
 COPY --from=js-builder /usr/src/app/tools tools
 
 COPY packaging/docker/run.sh /
+RUN /usr/share/grafana/bin/grafana-cli plugins install yesoreyeram-infinity-datasource
 
 USER grafana
 ENTRYPOINT [ "/run.sh" ]
